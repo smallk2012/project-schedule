@@ -11,10 +11,6 @@ import './api/extend/overwrite'
 import './api/extend/directive'
 // 以下项目中不需要使用就注释掉
 import store from './vuex/store'
-import ElementUI from 'element-ui'
-import 'element-ui/lib/theme-chalk/index.css'
-
-Vue.use(ElementUI)
 
 Vue.prototype.$api = api
 Vue.prototype.$local = local
