@@ -1,29 +1,14 @@
 <template>
     <div class="page">
-        <div>
-            <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xlsb,.xlsm,.xls,.xml,.csv,.txt,.ods,.fods,.uos,.sylk,.dif,.dbf,.prn,.qpw,.123,.wb*,.wq*,.html,.htm" @change="onchange($event)" />
-            <br/>
-            <button type="button" id="export-table" style="visibility:hidden" @click="onexport">Export to XLSX</button>
-            <br/>
-            <div id="out-table"></div>
+        <div style="margin-bottom: 20px;">
+            <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xls" @change="onchange($event)" />
+            <button type="button" v-if="list.length" @click="onexport">导出XLSX</button>
         </div>
         <p>项目：大数据分析&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人</p>
         <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发时间(包括周末)：{{dateAr.length}}天</p>
         <p style="margin-bottom: 20px;">开发人员：{{developersList}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最少：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最多：{{devDays.max}}天</p>
         <el-table :data="list" border style="width: 100%" height="480" :cell-style="getCellStyle">
-            <el-table-column fixed prop="page0" label="一级页面">
-            </el-table-column>
-            <el-table-column fixed prop="page1" label="二级页面">
-            </el-table-column>
-            <el-table-column fixed prop="page2" label="三级页面">
-            </el-table-column>
-            <el-table-column fixed prop="developer" label="开发人员">
-            </el-table-column>
-            <el-table-column fixed prop="assessmentDays" label="评估天数">
-            </el-table-column>
-            <el-table-column fixed prop="extensionDays" label="延期天数">
-            </el-table-column>
-            <el-table-column fixed prop="actualDays" label="实际天数">
+            <el-table-column fixed prop="页面1" :label="item" v-for="(item,idx) in fields" :key="item + idx">
             </el-table-column>
             <el-table-column :class-name="item.weekend ? 'gray' : ''" :label="item.date" v-for="(item,idx) in dateAr" :key="idx" width="100">
             </el-table-column>
@@ -32,7 +17,8 @@
 </template>
 
 <script>
-import XLSX from 'xlsx'
+var XLSX = window.XLSX
+
 export default {
     name: 'Home',
     data () {
@@ -40,7 +26,9 @@ export default {
             developers: {},
             colors: ['#7A24A6', '#001E64', '#0070C6', '#00B2F6', '#00B441', '#7ED432', '#FEFF00', '#FFBE00', '#FF0000', '#D20000'],
             dateAr: [],
-            list: []
+            list: [],
+            xlsxData: [],
+            fields: []
         }
     },
     computed: {
@@ -69,11 +57,6 @@ export default {
                 max: _max,
                 min: _min
             }
-        },
-        SheetJSFT () {
-            return [
-                'xlsx', 'xlsb', 'xlsm', 'xls', 'xml', 'csv', 'txt', 'ods', 'fods', 'uos', 'sylk', 'dif', 'dbf', 'prn', 'qpw', '123', 'wb*', 'wq*', 'html', 'htm'
-            ].map(function (x) { return '.' + x }).join(',')
         }
     },
     methods: {
@@ -100,6 +83,7 @@ export default {
             return _ar
         },
         onchange (evt) {
+            var _this = this
             var files = evt.target.files
 
             if (!files || files.length == 0) return
@@ -108,29 +92,89 @@ export default {
 
             var reader = new FileReader()
             reader.onload = function (e) {
-                // pre-process data
                 var binary = ''
                 var bytes = new Uint8Array(e.target.result)
                 var length = bytes.byteLength
                 for (var i = 0; i < length; i++) {
                     binary += String.fromCharCode(bytes[i])
                 }
-
-                // read workbook*/
                 var wb = XLSX.read(binary, { type: 'binary' })
 
-                // grab first sheet
                 var wsname = wb.SheetNames[0]
                 var ws = wb.Sheets[wsname]
+
+                var _sheet = XLSX.utils.sheet_to_json(ws, { header: 1 })
+                var _xlsxData = []
+                for (var m = 0; m < _sheet.length; m++) {
+                    if (_sheet[m].join('').toString().trim() === '') {
+                        _xlsxData = _sheet.splice(m + 1, _sheet.length)
+                        break
+                    }
+                }
+                _this.xlsxData = _xlsxData
                 // eslint-disable-next-line
                 console.log(ws)
-                // generate HTML
-                var HTML = XLSX.utils.sheet_to_html(ws)
+                // eslint-disable-next-line
+                console.log(_xlsxData)
+                if (_xlsxData.length) {
+                    var _fields = []
+                    for (let m = 0; m < _xlsxData[0].length; m++) {
+                        if (typeof (_xlsxData[0][m]) == 'number') {
+                            break
+                        } else {
+                            _fields.push(_xlsxData[0][m])
+                        }
+                    }
+                    _this.fields = _fields
+                    var _list = []
+                    for (let m = 1; m < _xlsxData.length; m++) {
+                        let _obj = {}
+                        for (let n = 0; n < _fields.length; n++) {
+                            if (n < _xlsxData[m].length) {
+                                _obj[_fields[n]] = _xlsxData[m][n] || ''
+                            } else {
+                                _obj[_fields[n]] = ''
+                            }
+                        }
+                        _list.push(_obj)
+                    }
+                    // eslint-disable-next-line
+                    console.log(_list)
+                    _this.list = _list
 
-                // update table
-                document.getElementById('out-table').innerHTML = HTML
-                // show export button
-                document.getElementById('export-table').style.visibility = 'visible'
+                    _this.developers = {}
+                    for (let i = 0; i < _list.length; i++) {
+                        let _obj = _this.developers[_list[i].开发人员] || {}
+                        _obj.time = _obj.time || 0
+                        _list[i].min = parseInt(_obj.time)
+                        _obj.time += parseFloat(_list[i].评估天数) + parseFloat(_list[i].延期天数)
+                        _list[i].max = Math.ceil(_obj.time)
+                        _this.developers[_list[i].开发人员] = _obj
+                    }
+                    var _totalTime = 0
+                    var _cIndex = 0
+                    for (var _dev in _this.developers) {
+                        _totalTime = Math.max(_this.developers[_dev].time, _totalTime)
+                        _this.developers[_dev].color = _this.colors[Math.floor(_cIndex % _this.colors.length)]
+                        _cIndex++
+                    }
+                    _this.dateAr = _this.getTotalTime(_totalTime)
+                    for (let m = 0; m < _list.length; m++) {
+                        _list[m].dateAr = []
+                        let _index = 0
+                        _list[m].color = _this.developers[_list[m].开发人员].color
+                        for (let n = 0; n < _this.dateAr.length; n++) {
+                            if (_index >= _list[m].min && _index < _list[m].max && _this.dateAr[n].weekend != 1) {
+                                _list[m].dateAr.push(1)
+                            } else {
+                                _list[m].dateAr.push(0)
+                            }
+                            if (_this.dateAr[n].weekend != 1) {
+                                _index++
+                            }
+                        }
+                    }
+                }
             }
 
             reader.readAsArrayBuffer(file)
@@ -144,52 +188,6 @@ export default {
         }
     },
     mounted () {
-        var _list = []
-        for (var m = 0; m < 5; m++) {
-            let _obj = {
-                page0: '一级' + m,
-                page1: '二级' + m,
-                page2: '三级' + m,
-                developer: '陈承' + Math.floor(Math.random() * 6),
-                assessmentDays: Math.floor(Math.random() * 5) + (Math.random() >= 0.5 ? 0 : 0.5),
-                extensionDays: Math.floor(Math.random() * 3),
-                actualDays: 0
-            }
-            _list.push(_obj)
-        }
-        this.developers = {}
-        for (var i = 0; i < _list.length; i++) {
-            let _obj = this.developers[_list[i].developer] || {}
-            _obj.time = _obj.time || 0
-            _list[i].min = parseInt(_obj.time)
-            _obj.time += parseFloat(_list[i].assessmentDays) + parseFloat(_list[i].extensionDays)
-            _list[i].max = Math.ceil(_obj.time)
-            this.developers[_list[i].developer] = _obj
-        }
-        var _totalTime = 0
-        var _cIndex = 0
-        for (var _dev in this.developers) {
-            _totalTime = Math.max(this.developers[_dev].time, _totalTime)
-            this.developers[_dev].color = this.colors[Math.floor(_cIndex % this.colors.length)]
-            _cIndex++
-        }
-        this.dateAr = this.getTotalTime(_totalTime)
-        for (let m = 0; m < _list.length; m++) {
-            _list[m].dateAr = []
-            let _index = 0
-            _list[m].color = this.developers[_list[m].developer].color
-            for (let n = 0; n < this.dateAr.length; n++) {
-                if (_index >= _list[m].min && _index < _list[m].max && this.dateAr[n].weekend != 1) {
-                    _list[m].dateAr.push(1)
-                } else {
-                    _list[m].dateAr.push(0)
-                }
-                if (this.dateAr[n].weekend != 1) {
-                    _index++
-                }
-            }
-        }
-        this.list = _list
     }
 }
 
