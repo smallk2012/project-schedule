@@ -1,7 +1,7 @@
 export default {
     routes: [
         {
-            path: '/',
+            path: '/hello',
             name: 'HelloWorld',
             component: () => import('@/components/HelloWorld')
         },
@@ -18,7 +18,7 @@ export default {
         {
             path: '*',
             redirect: {
-                path: '/'
+                path: '/home'
             }
         }
     ]
