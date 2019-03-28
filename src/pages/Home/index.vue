@@ -2,13 +2,14 @@
     <div class="page">
         <div style="margin-bottom: 20px;">
             <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xls" @change="onchange($event)" />
-            <button type="button" v-if="list.length" @click="onexport">导出XLSX</button>
+            <button type="button" v-if="list.length" @click="downloadExl">导出XLSX</button>
         </div>
         <p>项目：大数据分析&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人</p>
-        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发时间(包括周末)：{{dateAr.length}}天</p>
-        <p style="margin-bottom: 20px;">开发人员：{{developersList}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最少：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最多：{{devDays.max}}天</p>
+        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}</p>
+        <p>结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}</p>
+        <p style="margin-bottom: 20px;">开发人员：{{developersList}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最少：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最多：{{devDays.max}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发时间(包括周末)：{{dateAr.length}}天</p>
         <el-table :data="list" border style="width: 100%" height="480" :cell-style="getCellStyle">
-            <el-table-column fixed prop="页面1" :label="item" v-for="(item,idx) in fields" :key="item + idx">
+            <el-table-column fixed :prop="item" :label="item" v-for="(item,idx) in fields" :key="item + idx">
             </el-table-column>
             <el-table-column :class-name="item.weekend ? 'gray' : ''" :label="item.date" v-for="(item,idx) in dateAr" :key="idx" width="100">
             </el-table-column>
@@ -102,7 +103,8 @@ export default {
 
                 var wsname = wb.SheetNames[0]
                 var ws = wb.Sheets[wsname]
-
+                // eslint-disable-next-line
+                console.log(ws)
                 var _sheet = XLSX.utils.sheet_to_json(ws, { header: 1 })
                 var _xlsxData = []
                 for (var m = 0; m < _sheet.length; m++) {
@@ -111,11 +113,8 @@ export default {
                         break
                     }
                 }
+                // new Date(Date.parse("2007年11月11日".replace('年','-').replace('月','-').replace('日','')))
                 _this.xlsxData = _xlsxData
-                // eslint-disable-next-line
-                console.log(ws)
-                // eslint-disable-next-line
-                console.log(_xlsxData)
                 if (_xlsxData.length) {
                     var _fields = []
                     for (let m = 0; m < _xlsxData[0].length; m++) {
@@ -138,8 +137,6 @@ export default {
                         }
                         _list.push(_obj)
                     }
-                    // eslint-disable-next-line
-                    console.log(_list)
                     _this.list = _list
 
                     _this.developers = {}
@@ -179,12 +176,123 @@ export default {
 
             reader.readAsArrayBuffer(file)
         },
-        onexport (evt) {
-            // generate workbook object from table
-            var wb = XLSX.utils.table_to_book(document.getElementById('out-table'))
-            // generate file and force a download
-            XLSX.writeFile(wb, 'sheetjs.xlsx')
-            // 下载功能
+        // 下载功能
+        saveAs (__obj, __fileName) {
+            var _tmpa = document.createElement('a')
+            _tmpa.download = __fileName || '未命名.xlsx'
+            // 兼容ie
+            if ('msSaveOrOpenBlob' in navigator) {
+                window.navigator.msSaveOrOpenBlob(__obj, __fileName)
+            } else {
+                _tmpa.href = URL.createObjectURL(__obj)
+            }
+            _tmpa.click()
+            setTimeout(function () {
+                URL.revokeObjectURL(__obj)
+            }, 100)
+        },
+        downloadExl () {
+            // eslint-disable-next-line
+            let _sheetHeader = []
+            for (let m = 0; m < this.xlsxData[0].length; m++) {
+                if (this.xlsxData[0][m] == '实际天数') {
+                    break
+                } else {
+                    _sheetHeader.push(this.xlsxData[0][m])
+                }
+            }
+            var _obj = {}
+            for (let m = 0; m < _sheetHeader.length; m++) {
+                _obj[String.fromCharCode(65 + m) + 1] = {
+                    v: _sheetHeader[m]
+                }
+            }
+            for (let m = 0; m < this.dateAr.length; m++) {
+                if (this.dateAr[m].weekend == 1) {
+                    _obj[String.fromCharCode(65 + _sheetHeader.length + m) + 1] = {
+                        v: this.dateAr[m].date,
+                        s: {
+                            fill: {
+                                fgColor: {
+                                    rgb: 'CCCCCC'
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    _obj[String.fromCharCode(65 + _sheetHeader.length + m) + 1] = {
+                        v: this.dateAr[m].date
+                    }
+                }
+            }
+            for (let m = 0; m < this.list.length; m++) {
+                for (let n = 0; n < _sheetHeader.length; n++) {
+                    _obj[String.fromCharCode(65 + n) + (m + 2)] = {
+                        t: 'n',
+                        v: this.list[m][_sheetHeader[n]].toString()
+                    }
+                }
+                for (let n = 0; n < this.list[m].dateAr.length; n++) {
+                    if (this.list[m].dateAr[n] == 1 || this.dateAr[n].weekend == 1) {
+                        _obj[String.fromCharCode(65 + _sheetHeader.length + n) + (m + 2)] = {
+                            v: '',
+                            s: {
+                                fill: {
+                                    fgColor: {
+                                        rgb: this.dateAr[n].weekend == 1 ? 'CCCCCC' : this.list[m].color.replace('#', '')
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        _obj[String.fromCharCode(65 + _sheetHeader.length + n) + (m + 2)] = {
+                            v: ''
+                        }
+                    }
+                }
+            }
+            var _outputPos = Object.keys(_obj)
+            var _tmpWB = {
+                SheetNames: ['mySheet'], // 保存的表标题
+                Sheets: {
+                    'mySheet': Object.assign({},
+                        _obj, // 内容
+                        {
+                            '!ref': _outputPos[0] + ':' + _outputPos[_outputPos.length - 1] // 设置填充区域
+                        })
+                }
+            }
+            // eslint-disable-next-line
+            console.log(_obj)
+            var _tmpDown = new Blob([this.s2ab(XLSX.write(_tmpWB, { bookType: 'xlsx', bookSST: false, type: 'binary' }))], { type: '' })
+            this.saveAs(_tmpDown)
+        },
+        // 获取26个英文字母用来表示excel的列
+        getCharCol (__n) {
+            let _s = ''
+            let _m = 0
+            while (__n > 0) {
+                _m = __n % 26 + 1
+                _s = String.fromCharCode(_m + 64) + _s
+                __n = (__n - _m) / 26
+            }
+            return _s
+        },
+        s2ab (__s) {
+            if (typeof ArrayBuffer !== 'undefined') {
+                let _buf = new ArrayBuffer(__s.length)
+                let _view = new Uint8Array(_buf)
+                for (let i = 0; i != __s.length; ++i) {
+                    _view[i] = __s.charCodeAt(i) & 0xFF
+                }
+                return _buf
+            } else {
+                let _buf = new Array(__s.length)
+                for (let i = 0; i != __s.length; ++i) {
+                    _buf[i] = __s.charCodeAt(i) & 0xFF
+                }
+                return _buf
+            }
         }
     },
     mounted () {
