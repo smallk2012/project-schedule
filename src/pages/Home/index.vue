@@ -29,7 +29,10 @@ export default {
             dateAr: [],
             list: [],
             xlsxData: [],
-            fields: []
+            fields: [],
+            fileName: '',
+            suffix: 'xlsx',
+            startTime: ''
         }
     },
     computed: {
@@ -62,14 +65,14 @@ export default {
     },
     methods: {
         getCellStyle (__obj) {
-            return __obj.columnIndex > 6 && __obj.row.dateAr[__obj.columnIndex - 7] ? 'background-color:' + __obj.row.color : ''
+            return __obj.columnIndex > (this.fields.length - 1) && __obj.row.dateAr[__obj.columnIndex - this.fields.length] ? 'background-color:' + __obj.row.color : ''
         },
         getTotalTime (__time) {
             var _time = 0
             var _totalTime = 0
             var _ar = []
             while (_time < Math.ceil(__time)) {
-                var _date = new Date(Date.now() + 86400000 * _totalTime)
+                var _date = new Date(Date.parse(this.startTime) + 86400000 * _totalTime)
                 if (_date.getDay() != 0 && _date.getDay() != 6) {
                     _time++
                 }
@@ -90,7 +93,11 @@ export default {
             if (!files || files.length == 0) return
 
             var file = files[0]
-
+            _this.fileName = file.name.replace('.' + _this.suffix, '')
+            // eslint-disable-next-line
+            _this.startTime = _this.fileName.split('_')[1].replace(/\-/g, '/')
+            // eslint-disable-next-line
+            console.log(_this.startTime)
             var reader = new FileReader()
             reader.onload = function (e) {
                 var binary = ''
@@ -137,14 +144,12 @@ export default {
                         }
                         _list.push(_obj)
                     }
-                    _this.list = _list
-
                     _this.developers = {}
                     for (let i = 0; i < _list.length; i++) {
                         let _obj = _this.developers[_list[i].开发人员] || {}
                         _obj.time = _obj.time || 0
                         _list[i].min = parseInt(_obj.time)
-                        _obj.time += parseFloat(_list[i].评估天数) + parseFloat(_list[i].延期天数)
+                        _obj.time += parseFloat(_list[i].评估天数 || 0) + parseFloat(_list[i].延期天数 || 0)
                         _list[i].max = Math.ceil(_obj.time)
                         _this.developers[_list[i].开发人员] = _obj
                     }
@@ -171,18 +176,21 @@ export default {
                             }
                         }
                     }
+                    _this.list = _list
+                    // eslint-disable-next-line
+                    console.log(_sheet)
                 }
             }
 
             reader.readAsArrayBuffer(file)
         },
         // 下载功能
-        saveAs (__obj, __fileName) {
+        saveAs (__obj) {
             var _tmpa = document.createElement('a')
-            _tmpa.download = __fileName || '未命名.xlsx'
+            _tmpa.download = this.fileName + '.' + this.suffix
             // 兼容ie
             if ('msSaveOrOpenBlob' in navigator) {
-                window.navigator.msSaveOrOpenBlob(__obj, __fileName)
+                window.navigator.msSaveOrOpenBlob(__obj, _tmpa.download)
             } else {
                 _tmpa.href = URL.createObjectURL(__obj)
             }
@@ -192,10 +200,9 @@ export default {
             }, 100)
         },
         downloadExl () {
-            // eslint-disable-next-line
             let _sheetHeader = []
             for (let m = 0; m < this.xlsxData[0].length; m++) {
-                if (this.xlsxData[0][m] == '实际天数') {
+                if (typeof (this.xlsxData[0][m]) == 'number') {
                     break
                 } else {
                     _sheetHeader.push(this.xlsxData[0][m])
@@ -204,7 +211,14 @@ export default {
             var _obj = {}
             for (let m = 0; m < _sheetHeader.length; m++) {
                 _obj[String.fromCharCode(65 + m) + 1] = {
-                    v: _sheetHeader[m]
+                    v: _sheetHeader[m],
+                    c: [
+                        {
+                            a: 'dd',
+                            t: 'This comment is visible',
+                            v: 'ddd'
+                        }
+                    ]
                 }
             }
             for (let m = 0; m < this.dateAr.length; m++) {
@@ -229,7 +243,7 @@ export default {
                 for (let n = 0; n < _sheetHeader.length; n++) {
                     _obj[String.fromCharCode(65 + n) + (m + 2)] = {
                         t: 'n',
-                        v: this.list[m][_sheetHeader[n]].toString()
+                        v: this.list[m][_sheetHeader[n]]
                     }
                 }
                 for (let n = 0; n < this.list[m].dateAr.length; n++) {
@@ -253,9 +267,9 @@ export default {
             }
             var _outputPos = Object.keys(_obj)
             var _tmpWB = {
-                SheetNames: ['mySheet'], // 保存的表标题
+                SheetNames: ['排期'], // 保存的表标题
                 Sheets: {
-                    'mySheet': Object.assign({},
+                    '排期': Object.assign({},
                         _obj, // 内容
                         {
                             '!ref': _outputPos[0] + ':' + _outputPos[_outputPos.length - 1] // 设置填充区域
@@ -264,7 +278,7 @@ export default {
             }
             // eslint-disable-next-line
             console.log(_obj)
-            var _tmpDown = new Blob([this.s2ab(XLSX.write(_tmpWB, { bookType: 'xlsx', bookSST: false, type: 'binary' }))], { type: '' })
+            var _tmpDown = new Blob([this.s2ab(XLSX.write(_tmpWB, { bookType: this.suffix, bookSST: false, type: 'binary' }))], { type: '' })
             this.saveAs(_tmpDown)
         },
         // 获取26个英文字母用来表示excel的列
