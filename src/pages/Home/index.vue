@@ -4,7 +4,7 @@
             <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xls" @change="onchange($event)" />
             <button type="button" v-if="tableData.length" @click="downloadExl">导出XLSX</button>
         </div>
-        <p>项目：大数据分析&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
+        <p>项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
         <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}</p>
         <p style="margin-bottom: 20px;">开发人员：{{developersList.toString()}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最短：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最长：{{devDays.max}}天</p>
         <el-table :data="tableData" border style="width: 100%" height="480" :cell-style="getCellStyle">
