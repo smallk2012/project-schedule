@@ -172,6 +172,14 @@ export default {
                         let _obj = _this.developers[_tableData[i][_this.dever] || _this.dever] || {}
                         _obj.time = _obj.time || 0
                         _tableData[i].min = parseInt(_obj.time)
+                        var _devlog = _tableData[i].开发记录.trim()
+                        if (_devlog) {
+                            var _devlogDays = _devlog.split('#').length
+                            console.log(_devlogDays)
+                            _tableData[i].延期天数 = _devlogDays > Math.ceil(parseFloat(_tableData[i].评估天数 || 0)) ? _devlogDays - parseFloat(_tableData[i].评估天数 || 0) : ''
+                        } else {
+                            _tableData[i].延期天数 = ''
+                        }
                         _obj.time += parseFloat(_tableData[i].评估天数 || 0) + parseFloat(_tableData[i].延期天数 || 0)
                         _tableData[i].max = Math.ceil(_obj.time)
                         _this.developers[_tableData[i][_this.dever] || _this.dever] = _obj
