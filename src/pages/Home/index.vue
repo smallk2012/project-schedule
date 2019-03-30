@@ -175,7 +175,6 @@ export default {
                         var _devlog = _tableData[i].开发记录.trim()
                         if (_devlog) {
                             var _devlogDays = _devlog.split('#').length
-                            console.log(_devlogDays)
                             _tableData[i].延期天数 = _devlogDays > Math.ceil(parseFloat(_tableData[i].评估天数 || 0)) ? _devlogDays - parseFloat(_tableData[i].评估天数 || 0) : ''
                         } else {
                             _tableData[i].延期天数 = ''
