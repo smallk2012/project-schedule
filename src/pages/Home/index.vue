@@ -34,7 +34,8 @@ export default {
             suffix: 'xlsx',
             startTime: '',
             remarks: [],
-            dever: '开发人员'
+            dever: '开发人员',
+            devlogDays: []
         }
     },
     computed: {
@@ -72,26 +73,77 @@ export default {
         }
     },
     methods: {
-        getCellStyle (__obj) {
-            return __obj.columnIndex > (this.xlsxFields.length - 1) && __obj.row.dateAr[__obj.columnIndex - this.xlsxFields.length] == 1 && __obj.row[this.dever] != '' ? 'background-color:' + __obj.row.color : ''
+        colorRgb (__color) {
+            var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/
+            var sColor = __color.toLowerCase()
+            if (sColor && reg.test(sColor)) {
+                if (sColor.length === 4) {
+                    var sColorNew = '#'
+                    for (let i = 1; i < 4; i += 1) {
+                        sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1))
+                    }
+                    sColor = sColorNew
+                }
+                var sColorChange = []
+                for (let i = 1; i < 7; i += 2) {
+                    sColorChange.push(parseInt('0x' + sColor.slice(i, i + 2)))
+                }
+                sColor = 'rgba(' + sColorChange.join(',') + ',0.5)'
+            }
+
+            let _values = sColor
+                .replace(/rgba?\(/, '')
+                .replace(/\)/, '')
+                .replace(/[\s+]/g, '')
+                .split(',')
+            let _a = parseFloat(_values[3] || 1)
+            let _r = Math.floor(_a * parseInt(_values[0]) + (1 - _a) * 255)
+            let _g = Math.floor(_a * parseInt(_values[1]) + (1 - _a) * 255)
+            let _b = Math.floor(_a * parseInt(_values[2]) + (1 - _a) * 255)
+            return '#' +
+                ('0' + _r.toString(16)).slice(-2) +
+                ('0' + _g.toString(16)).slice(-2) +
+                ('0' + _b.toString(16)).slice(-2)
         },
-        getTotalTime (__time) {
+        getCellStyle (__obj) {
+            var _style = ''
+            if (__obj.columnIndex > (this.xlsxFields.length - 1) && __obj.row[this.dever] != '') {
+                let _weekend = __obj.row.dateAr[__obj.columnIndex - this.xlsxFields.length]
+                if (_weekend == 1) {
+                    _style = 'background-color:' + __obj.row.color
+                } else if (_weekend == 3) {
+                    _style = 'background-color:' + this.colorRgb(__obj.row.color)
+                } else {
+                    _style = ''
+                }
+            }
+            return _style
+        },
+        getTotalTime (__time, __dayTime) {
             var _time = 0
             var _totalTime = 0
             var _ar = []
             while (_time < Math.ceil(__time)) {
-                var _date = new Date(Date.parse(this.startTime) + 86400000 * _totalTime)
+                let _date = new Date(Date.parse(this.startTime) + 86400000 * _totalTime)
                 if (_date.getDay() != 0 && _date.getDay() != 6) {
                     _time++
                 }
                 _totalTime++
-                var _obj = {
+                let _obj = {
                     date: _date.format('MM月dd日'),
                     weekend: _date.getDay() != 0 && _date.getDay() != 6 ? 0 : 1
                 }
                 _ar.push(_obj)
             }
-
+            while (_totalTime <= __dayTime) {
+                let _date = new Date(Date.parse(this.startTime) + 86400000 * _totalTime)
+                let _obj = {
+                    date: _date.format('MM月dd日'),
+                    weekend: _date.getDay() != 0 && _date.getDay() != 6 ? 0 : 1
+                }
+                _ar.push(_obj)
+                _totalTime++
+            }
             return _ar
         },
         onchange (evt) {
@@ -172,10 +224,15 @@ export default {
                         let _obj = _this.developers[_tableData[i][_this.dever] || _this.dever] || {}
                         _obj.time = _obj.time || 0
                         _tableData[i].min = parseInt(_obj.time)
+                        _tableData[i].devlog = _tableData[i].devlog || []
                         var _devlog = _tableData[i].开发记录.trim()
-                        if (_devlog) {
-                            var _devlogDays = _devlog.split('#').length
-                            _tableData[i].延期天数 = _devlogDays > Math.ceil(parseFloat(_tableData[i].评估天数 || 0)) ? _devlogDays - parseFloat(_tableData[i].评估天数 || 0) : ''
+                        let _devlogDays = []
+                        if (_devlog && _tableData[i][_this.dever].trim() != '') {
+                            _devlogDays = _devlog.split('#')
+                            _devlogDays = _devlogDays.splice(1, _devlogDays.length)
+                            _tableData[i].devlog = _tableData[i].devlog.concat(_devlogDays)
+                            _this.devlogDays = _this.devlogDays.concat(_devlogDays)
+                            _tableData[i].延期天数 = _devlogDays.length > Math.ceil(parseFloat(_tableData[i].评估天数 || 0)) ? _devlogDays.length - parseFloat(_tableData[i].评估天数 || 0) : ''
                         } else {
                             _tableData[i].延期天数 = ''
                         }
@@ -191,7 +248,16 @@ export default {
                         _this.developers[_dev].color = _this.colors[Math.floor(_cIndex % _this.colors.length)]
                         _cIndex++
                     }
-                    _this.dateAr = _this.getTotalTime(_totalTime)
+                    // 开发记录中最后的天数
+                    let _dayTime = 0
+                    if (_this.devlogDays.length) {
+                        let _endTime = 0
+                        for (let m = 0; m < _this.devlogDays.length; m++) {
+                            _endTime = Math.max(Date.parse(_this.devlogDays[m]) || 0, _endTime)
+                        }
+                        _dayTime = Math.abs(Date.parse(_this.startTime) - _endTime) / 86400000
+                    }
+                    _this.dateAr = _this.getTotalTime(_totalTime, _dayTime)
                     for (let m = 0; m < _tableData.length; m++) {
                         _tableData[m].dateAr = []
                         let _index = 0
@@ -209,6 +275,12 @@ export default {
                             if (_this.dateAr[n].weekend != 1) {
                                 _index++
                             }
+                            for (let j = 0; j < _tableData[m].devlog.length; j++) {
+                                if (Date.parse(_tableData[m].devlog[j]) == Date.parse(_this.startTime) + 86400000 * n) {
+                                    _tableData[m].dateAr[_tableData[m].dateAr.length - 1] = 3
+                                    break
+                                }
+                            }
                         }
                     }
                     _this.tableData = _tableData
@@ -218,6 +290,7 @@ export default {
             reader.readAsArrayBuffer(file)
         },
         sheetStyle (__v, __c) {
+            __v = __v.toString()
             var _obj = {
                 v: __v,
                 t: isNaN(Number(__v)) || __v.trim() === '' ? ((__v.indexOf('月') != -1 && __v.indexOf('日') != -1 && __v.length == __v.indexOf('日') + 1) ? 'n' : 's') : 'n'
@@ -279,7 +352,7 @@ export default {
                         _sheetData[_cellName + (m + 2)] = _this.sheetStyle(_this.tableData[m][_this.xlsxFields[n]])
                     } else {
                         let _weekend = _this.tableData[m].dateAr[n - _this.xlsxFields.length]
-                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _this.tableData[m][_this.dever] != '' && _weekend == 1 ? _this.tableData[m].color : (_weekend == 2 ? '#CCCCCC' : ''))
+                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _this.tableData[m][_this.dever] != '' && _weekend == 1 ? _this.tableData[m].color : (_weekend == 2 ? '#CCCCCC' : _weekend == 3 ? _this.colorRgb(_this.tableData[m].color) : ''))
                     }
                 }
             }
@@ -295,7 +368,7 @@ export default {
                 }
             }
             // eslint-disable-next-line
-            // console.log(_tmpWB)
+            console.log(_tmpWB)
             var _tmpDown = new Blob([this.s2ab(XLSX.write(_tmpWB, { bookType: this.suffix, bookSST: false, type: 'binary' }))], { type: '' })
             this.saveAs(_tmpDown)
         },
