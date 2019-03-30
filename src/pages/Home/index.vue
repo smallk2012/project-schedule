@@ -33,21 +33,26 @@ export default {
             fileName: '',
             suffix: 'xlsx',
             startTime: '',
-            remarks: []
+            remarks: [],
+            dever: '开发人员'
         }
     },
     computed: {
         developersList () {
             var _ar = []
             for (var dev in this.developers) {
-                _ar.push(dev)
+                if (dev != this.dever) {
+                    _ar.push(dev)
+                }
             }
             return _ar
         },
         developersDays () {
             var _days = 0
             for (var dev in this.developers) {
-                _days += parseInt(this.developers[dev].time * 10)
+                if (dev != this.dever) {
+                    _days += parseInt(this.developers[dev].time * 10)
+                }
             }
             return _days / 10
         },
@@ -55,8 +60,10 @@ export default {
             var _min = 10000000
             var _max = 0
             for (var dev in this.developers) {
-                _min = Math.min(this.developers[dev].time, _min)
-                _max = Math.max(this.developers[dev].time, _max)
+                if (dev != this.dever) {
+                    _min = Math.min(this.developers[dev].time, _min)
+                    _max = Math.max(this.developers[dev].time, _max)
+                }
             }
             return {
                 max: _max,
@@ -66,7 +73,7 @@ export default {
     },
     methods: {
         getCellStyle (__obj) {
-            return __obj.columnIndex > (this.xlsxFields.length - 1) && __obj.row.dateAr[__obj.columnIndex - this.xlsxFields.length] ? 'background-color:' + __obj.row.color : ''
+            return __obj.columnIndex > (this.xlsxFields.length - 1) && __obj.row.dateAr[__obj.columnIndex - this.xlsxFields.length] == 1 && __obj.row[this.dever] != '' ? 'background-color:' + __obj.row.color : ''
         },
         getTotalTime (__time) {
             var _time = 0
@@ -112,7 +119,7 @@ export default {
                 var wsname = wb.SheetNames[0]
                 var ws = wb.Sheets[wsname]
                 // eslint-disable-next-line
-                console.log(ws)
+                // console.log(ws)
                 var _sheet = XLSX.utils.sheet_to_json(ws, { header: 1 })
                 // 读取排期内容
                 var _xlsxData = []
@@ -162,12 +169,12 @@ export default {
                     // 开发人员数据
                     _this.developers = {}
                     for (let i = 0; i < _tableData.length; i++) {
-                        let _obj = _this.developers[_tableData[i].开发人员] || {}
+                        let _obj = _this.developers[_tableData[i][_this.dever] || _this.dever] || {}
                         _obj.time = _obj.time || 0
                         _tableData[i].min = parseInt(_obj.time)
                         _obj.time += parseFloat(_tableData[i].评估天数 || 0) + parseFloat(_tableData[i].延期天数 || 0)
                         _tableData[i].max = Math.ceil(_obj.time)
-                        _this.developers[_tableData[i].开发人员] = _obj
+                        _this.developers[_tableData[i][_this.dever] || _this.dever] = _obj
                     }
                     // 开发时间
                     var _totalTime = 0
@@ -181,12 +188,16 @@ export default {
                     for (let m = 0; m < _tableData.length; m++) {
                         _tableData[m].dateAr = []
                         let _index = 0
-                        _tableData[m].color = _this.developers[_tableData[m].开发人员].color
+                        _tableData[m].color = _this.developers[_tableData[m][_this.dever] || _this.dever].color
                         for (let n = 0; n < _this.dateAr.length; n++) {
                             if (_index >= _tableData[m].min && _index < _tableData[m].max && _this.dateAr[n].weekend != 1) {
                                 _tableData[m].dateAr.push(1)
                             } else {
-                                _tableData[m].dateAr.push(0)
+                                if (_this.dateAr[n].weekend == 1) {
+                                    _tableData[m].dateAr.push(2)
+                                } else {
+                                    _tableData[m].dateAr.push(0)
+                                }
                             }
                             if (_this.dateAr[n].weekend != 1) {
                                 _index++
@@ -235,12 +246,15 @@ export default {
             var _merges = []
             var _sheetFields = _this.xlsxFields.map(v => ({ name: v, value: 0 })).concat(_this.dateAr.map(v => ({ name: v.date, value: v.weekend })))
             var _sheetData = {}
+            var _endCellName = 'A1'
             for (let m = 0; m < _sheetFields.length; m++) {
                 let _cellName = m > 25 ? _this.getCharCol(m) : String.fromCharCode(65 + m)
                 _sheetData[_cellName + 1] = _this.sheetStyle(_sheetFields[m].name, _sheetFields[m].value == 1 ? '#CCCCCC' : '')
                 _sheetData[_cellName + (_this.tableData.length + 2)] = _this.sheetStyle('', '#000000')
+                _endCellName = _cellName + (_this.tableData.length + 2)
                 for (let n = 0; n < _this.remarks.length; n++) {
                     _sheetData[_cellName + (_this.tableData.length + 3 + n)] = _this.sheetStyle(m == 0 ? this.remarks[n].trim() : '')
+                    _endCellName = _cellName + (_this.tableData.length + 3 + n)
                     if (m == 0) {
                         _merges.push(
                             {
@@ -258,11 +272,10 @@ export default {
                         _sheetData[_cellName + (m + 2)] = _this.sheetStyle(_this.tableData[m][_this.xlsxFields[n]])
                     } else {
                         let _weekend = _this.tableData[m].dateAr[n - _this.xlsxFields.length]
-                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _weekend == 1 ? _this.tableData[m].color : '#CCCCCC')
+                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _this.tableData[m][_this.dever] != '' && _weekend == 1 ? _this.tableData[m].color : (_weekend == 2 ? '#CCCCCC' : ''))
                     }
                 }
             }
-            var _outputPos = Object.keys(_sheetData).sort()
             _sheetData['!merges'] = _merges // 必须在这里加合并代码，不然keys会出问题
             var _tmpWB = {
                 SheetNames: ['排期'], // 保存的表标题
@@ -270,12 +283,12 @@ export default {
                     '排期': Object.assign({},
                         _sheetData, // 内容
                         {
-                            '!ref': _outputPos[0] + ':' + _outputPos[_outputPos.length - 1] // 设置填充区域
+                            '!ref': 'A1:' + _endCellName // 设置填充区域
                         })
                 }
             }
             // eslint-disable-next-line
-            console.log(_tmpWB)
+            // console.log(_tmpWB)
             var _tmpDown = new Blob([this.s2ab(XLSX.write(_tmpWB, { bookType: this.suffix, bookSST: false, type: 'binary' }))], { type: '' })
             this.saveAs(_tmpDown)
         },
