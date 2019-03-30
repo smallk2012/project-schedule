@@ -2,18 +2,18 @@
     <div class="page">
         <div style="margin-bottom: 20px;">
             <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xls" @change="onchange($event)" />
-            <button type="button" v-if="list.length" @click="downloadExl">导出XLSX</button>
+            <button type="button" v-if="tableData.length" @click="downloadExl">导出XLSX</button>
         </div>
-        <p>项目：大数据分析&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人</p>
-        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}</p>
-        <p>结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}</p>
-        <p style="margin-bottom: 20px;">开发人员：{{developersList}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最少：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;最多：{{devDays.max}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发时间(包括周末)：{{dateAr.length}}天</p>
-        <el-table :data="list" border style="width: 100%" height="480" :cell-style="getCellStyle">
-            <el-table-column fixed :prop="item" :label="item" v-for="(item,idx) in fields" :key="item + idx">
+        <p>项目：大数据分析&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
+        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}</p>
+        <p style="margin-bottom: 20px;">开发人员：{{developersList.toString()}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最短：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最长：{{devDays.max}}天</p>
+        <el-table :data="tableData" border style="width: 100%" height="480" :cell-style="getCellStyle">
+            <el-table-column fixed :prop="item" :label="item" v-for="(item,idx) in xlsxFields" :key="item + idx">
             </el-table-column>
             <el-table-column :class-name="item.weekend ? 'gray' : ''" :label="item.date" v-for="(item,idx) in dateAr" :key="idx" width="100">
             </el-table-column>
         </el-table>
+        <p v-for="(item,index) in remarks" :key="index">{{item}}</p>
     </div>
 </template>
 
@@ -27,12 +27,13 @@ export default {
             developers: {},
             colors: ['#7A24A6', '#001E64', '#0070C6', '#00B2F6', '#00B441', '#7ED432', '#FEFF00', '#FFBE00', '#FF0000', '#D20000'],
             dateAr: [],
-            list: [],
+            tableData: [],
             xlsxData: [],
-            fields: [],
+            xlsxFields: [],
             fileName: '',
             suffix: 'xlsx',
-            startTime: ''
+            startTime: '',
+            remarks: []
         }
     },
     computed: {
@@ -41,7 +42,7 @@ export default {
             for (var dev in this.developers) {
                 _ar.push(dev)
             }
-            return _ar.toString()
+            return _ar
         },
         developersDays () {
             var _days = 0
@@ -59,13 +60,13 @@ export default {
             }
             return {
                 max: _max,
-                min: _min
+                min: _min == 10000000 ? 0 : _min
             }
         }
     },
     methods: {
         getCellStyle (__obj) {
-            return __obj.columnIndex > (this.fields.length - 1) && __obj.row.dateAr[__obj.columnIndex - this.fields.length] ? 'background-color:' + __obj.row.color : ''
+            return __obj.columnIndex > (this.xlsxFields.length - 1) && __obj.row.dateAr[__obj.columnIndex - this.xlsxFields.length] ? 'background-color:' + __obj.row.color : ''
         },
         getTotalTime (__time) {
             var _time = 0
@@ -93,7 +94,7 @@ export default {
             if (!files || files.length == 0) return
 
             var file = files[0]
-            _this.fileName = file.name.replace('.' + _this.suffix, '')
+            _this.fileName = file.name.replace('.' + _this.suffix, '').split(' ')[0]
             // eslint-disable-next-line
             _this.startTime = _this.fileName.split('_')[1].replace(/\-/g, '/')
             // eslint-disable-next-line
@@ -113,46 +114,62 @@ export default {
                 // eslint-disable-next-line
                 console.log(ws)
                 var _sheet = XLSX.utils.sheet_to_json(ws, { header: 1 })
+                // 读取排期内容
                 var _xlsxData = []
-                for (var m = 0; m < _sheet.length; m++) {
+                var _spliceIndex = _sheet.length
+                for (let m = 0; m < _sheet.length; m++) {
                     if (_sheet[m].join('').toString().trim() === '') {
-                        _xlsxData = _sheet.splice(m + 1, _sheet.length)
+                        _spliceIndex = m
                         break
                     }
                 }
-                // new Date(Date.parse("2007年11月11日".replace('年','-').replace('月','-').replace('日','')))
+                _xlsxData = _sheet.splice(0, _spliceIndex)
+                // 读取备注内容
+                var _remarks = []
+                for (let m = 0; m < _sheet.length; m++) {
+                    let _remark = _sheet[m].join('').toString().trim()
+                    if (_remark !== '') {
+                        _remarks.push(_remark)
+                    }
+                }
+                _this.remarks = _remarks
                 _this.xlsxData = _xlsxData
                 if (_xlsxData.length) {
-                    var _fields = []
+                    // 表格字段
+                    var _xlsxFields = []
                     for (let m = 0; m < _xlsxData[0].length; m++) {
-                        if (typeof (_xlsxData[0][m]) == 'number') {
+                        if (_xlsxData[0][m] == '进度') {
+                            _xlsxFields.push(_xlsxData[0][m])
                             break
                         } else {
-                            _fields.push(_xlsxData[0][m])
+                            _xlsxFields.push(_xlsxData[0][m])
                         }
                     }
-                    _this.fields = _fields
-                    var _list = []
+                    _this.xlsxFields = _xlsxFields
+                    // 表格数据
+                    var _tableData = []
                     for (let m = 1; m < _xlsxData.length; m++) {
                         let _obj = {}
-                        for (let n = 0; n < _fields.length; n++) {
+                        for (let n = 0; n < _xlsxFields.length; n++) {
                             if (n < _xlsxData[m].length) {
-                                _obj[_fields[n]] = _xlsxData[m][n] || ''
+                                _obj[_xlsxFields[n]] = _xlsxData[m][n] || ''
                             } else {
-                                _obj[_fields[n]] = ''
+                                _obj[_xlsxFields[n]] = ''
                             }
                         }
-                        _list.push(_obj)
+                        _tableData.push(_obj)
                     }
+                    // 开发人员数据
                     _this.developers = {}
-                    for (let i = 0; i < _list.length; i++) {
-                        let _obj = _this.developers[_list[i].开发人员] || {}
+                    for (let i = 0; i < _tableData.length; i++) {
+                        let _obj = _this.developers[_tableData[i].开发人员] || {}
                         _obj.time = _obj.time || 0
-                        _list[i].min = parseInt(_obj.time)
-                        _obj.time += parseFloat(_list[i].评估天数 || 0) + parseFloat(_list[i].延期天数 || 0)
-                        _list[i].max = Math.ceil(_obj.time)
-                        _this.developers[_list[i].开发人员] = _obj
+                        _tableData[i].min = parseInt(_obj.time)
+                        _obj.time += parseFloat(_tableData[i].评估天数 || 0) + parseFloat(_tableData[i].延期天数 || 0)
+                        _tableData[i].max = Math.ceil(_obj.time)
+                        _this.developers[_tableData[i].开发人员] = _obj
                     }
+                    // 开发时间
                     var _totalTime = 0
                     var _cIndex = 0
                     for (var _dev in _this.developers) {
@@ -161,28 +178,42 @@ export default {
                         _cIndex++
                     }
                     _this.dateAr = _this.getTotalTime(_totalTime)
-                    for (let m = 0; m < _list.length; m++) {
-                        _list[m].dateAr = []
+                    for (let m = 0; m < _tableData.length; m++) {
+                        _tableData[m].dateAr = []
                         let _index = 0
-                        _list[m].color = _this.developers[_list[m].开发人员].color
+                        _tableData[m].color = _this.developers[_tableData[m].开发人员].color
                         for (let n = 0; n < _this.dateAr.length; n++) {
-                            if (_index >= _list[m].min && _index < _list[m].max && _this.dateAr[n].weekend != 1) {
-                                _list[m].dateAr.push(1)
+                            if (_index >= _tableData[m].min && _index < _tableData[m].max && _this.dateAr[n].weekend != 1) {
+                                _tableData[m].dateAr.push(1)
                             } else {
-                                _list[m].dateAr.push(0)
+                                _tableData[m].dateAr.push(0)
                             }
                             if (_this.dateAr[n].weekend != 1) {
                                 _index++
                             }
                         }
                     }
-                    _this.list = _list
-                    // eslint-disable-next-line
-                    console.log(_sheet)
+                    _this.tableData = _tableData
                 }
             }
 
             reader.readAsArrayBuffer(file)
+        },
+        sheetStyle (__v, __c) {
+            var _obj = {
+                v: __v,
+                t: isNaN(Number(__v)) || __v.trim() === '' ? ((__v.indexOf('月') != -1 && __v.indexOf('日') != -1 && __v.length == __v.indexOf('日') + 1) ? 'n' : 's') : 'n'
+            }
+            if (__c) {
+                _obj.s = {
+                    fill: {
+                        fgColor: {
+                            rgb: __c.replace('#', '')
+                        }
+                    }
+                }
+            }
+            return _obj
         },
         // 下载功能
         saveAs (__obj) {
@@ -200,84 +231,51 @@ export default {
             }, 100)
         },
         downloadExl () {
-            let _sheetHeader = []
-            for (let m = 0; m < this.xlsxData[0].length; m++) {
-                if (typeof (this.xlsxData[0][m]) == 'number') {
-                    break
-                } else {
-                    _sheetHeader.push(this.xlsxData[0][m])
-                }
-            }
-            var _obj = {}
-            for (let m = 0; m < _sheetHeader.length; m++) {
-                _obj[String.fromCharCode(65 + m) + 1] = {
-                    v: _sheetHeader[m],
-                    c: [
-                        {
-                            a: 'dd',
-                            t: 'This comment is visible',
-                            v: 'ddd'
-                        }
-                    ]
-                }
-            }
-            for (let m = 0; m < this.dateAr.length; m++) {
-                if (this.dateAr[m].weekend == 1) {
-                    _obj[String.fromCharCode(65 + _sheetHeader.length + m) + 1] = {
-                        v: this.dateAr[m].date,
-                        s: {
-                            fill: {
-                                fgColor: {
-                                    rgb: 'CCCCCC'
-                                }
+            var _this = this
+            var _merges = []
+            var _sheetFields = _this.xlsxFields.map(v => ({ name: v, value: 0 })).concat(_this.dateAr.map(v => ({ name: v.date, value: v.weekend })))
+            var _sheetData = {}
+            for (let m = 0; m < _sheetFields.length; m++) {
+                let _cellName = m > 25 ? _this.getCharCol(m) : String.fromCharCode(65 + m)
+                _sheetData[_cellName + 1] = _this.sheetStyle(_sheetFields[m].name, _sheetFields[m].value == 1 ? '#CCCCCC' : '')
+                _sheetData[_cellName + (_this.tableData.length + 2)] = _this.sheetStyle('', '#000000')
+                for (let n = 0; n < _this.remarks.length; n++) {
+                    _sheetData[_cellName + (_this.tableData.length + 3 + n)] = _this.sheetStyle(m == 0 ? this.remarks[n].trim() : '')
+                    if (m == 0) {
+                        _merges.push(
+                            {
+                                s: { c: 0, r: (_this.tableData.length + 3 + n) - 1 },
+                                e: { c: _this.xlsxFields.length - 1, r: (_this.tableData.length + 3 + n) - 1 }
                             }
-                        }
-                    }
-                } else {
-                    _obj[String.fromCharCode(65 + _sheetHeader.length + m) + 1] = {
-                        v: this.dateAr[m].date
+                        )
                     }
                 }
             }
-            for (let m = 0; m < this.list.length; m++) {
-                for (let n = 0; n < _sheetHeader.length; n++) {
-                    _obj[String.fromCharCode(65 + n) + (m + 2)] = {
-                        t: 'n',
-                        v: this.list[m][_sheetHeader[n]]
-                    }
-                }
-                for (let n = 0; n < this.list[m].dateAr.length; n++) {
-                    if (this.list[m].dateAr[n] == 1 || this.dateAr[n].weekend == 1) {
-                        _obj[String.fromCharCode(65 + _sheetHeader.length + n) + (m + 2)] = {
-                            v: '',
-                            s: {
-                                fill: {
-                                    fgColor: {
-                                        rgb: this.dateAr[n].weekend == 1 ? 'CCCCCC' : this.list[m].color.replace('#', '')
-                                    }
-                                }
-                            }
-                        }
+            for (let m = 0; m < _this.tableData.length; m++) {
+                for (let n = 0; n < _sheetFields.length; n++) {
+                    var _cellName = n > 25 ? _this.getCharCol(n) : String.fromCharCode(65 + n)
+                    if (n < _this.xlsxFields.length) {
+                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle(_this.tableData[m][_this.xlsxFields[n]])
                     } else {
-                        _obj[String.fromCharCode(65 + _sheetHeader.length + n) + (m + 2)] = {
-                            v: ''
-                        }
+                        let _weekend = _this.tableData[m].dateAr[n - _this.xlsxFields.length]
+                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _weekend == 1 ? _this.tableData[m].color : '#CCCCCC')
                     }
                 }
             }
-            var _outputPos = Object.keys(_obj)
+            var _outputPos = Object.keys(_sheetData).sort()
+            _sheetData['!merges'] = _merges // 必须在这里加合并代码，不然keys会出问题
             var _tmpWB = {
                 SheetNames: ['排期'], // 保存的表标题
                 Sheets: {
                     '排期': Object.assign({},
-                        _obj, // 内容
+                        _sheetData, // 内容
                         {
                             '!ref': _outputPos[0] + ':' + _outputPos[_outputPos.length - 1] // 设置填充区域
                         })
                 }
             }
             // eslint-disable-next-line
-            console.log(_obj)
+            console.log(_tmpWB)
             var _tmpDown = new Blob([this.s2ab(XLSX.write(_tmpWB, { bookType: this.suffix, bookSST: false, type: 'binary' }))], { type: '' })
             this.saveAs(_tmpDown)
         },
