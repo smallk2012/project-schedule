@@ -1,4 +1,4 @@
-# vue-cli-demo-beta
+# https://smallk2012.github.io/project-schedule/dist/#/home
 
 ```
 //[*]为本脚手架每次新项目中必动地方，反之建议不需要动。
