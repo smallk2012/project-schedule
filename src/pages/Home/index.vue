@@ -4,13 +4,14 @@
             <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xls" @change="onchange($event)" />
             <button type="button" v-if="tableData.length" @click="downloadExl">导出XLSX</button>
         </div>
-        <p>项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工时：{{developersDays}}天/人&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
+        <p>项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工作日：{{developersDays.time/10}}天/人
+            <span v-if="developersDays.delayTime>0">(包括延期{{developersDays.delayTime/10}}天)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
         <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}</p>
         <p style="margin-bottom: 20px;">开发人员：{{developersList.toString()}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最短：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最长：{{devDays.max}}天</p>
         <el-table :data="tableData" border style="width: 100%" height="480" :cell-style="getCellStyle">
-            <el-table-column fixed :prop="item" :label="item" v-for="(item,idx) in xlsxFields" :key="item + idx">
+            <el-table-column show-overflow-tooltip fixed header-align="center" :prop="item" :label="item" v-for="(item,idx) in xlsxFields" :key="item + idx">
             </el-table-column>
-            <el-table-column :class-name="item.weekend ? 'gray' : ''" :label="item.date" v-for="(item,idx) in dateAr" :key="idx" width="100">
+            <el-table-column show-overflow-tooltip min-width="120" align="center" :class-name="item.weekend ? 'gray' : ''" :label="item.date" v-for="(item,idx) in dateAr" :key="idx" width="100">
             </el-table-column>
         </el-table>
         <p v-for="(item,index) in remarks" :key="index">{{item}}</p>
@@ -49,13 +50,17 @@ export default {
             return _ar
         },
         developersDays () {
-            var _days = 0
+            var _days = {
+                time: 0,
+                delayTime: 0
+            }
             for (var dev in this.developers) {
                 if (dev != this.dever) {
-                    _days += parseInt(this.developers[dev].time * 10)
+                    _days.time += parseInt(this.developers[dev].time * 10)
+                    _days.delayTime += parseInt(this.developers[dev].delayTime * 10)
                 }
             }
-            return _days / 10
+            return _days
         },
         devDays () {
             var _min = 10000000
@@ -73,7 +78,7 @@ export default {
         }
     },
     methods: {
-        colorRgb (__color) {
+        colorRgb (__color, __opacity) {
             var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/
             var sColor = __color.toLowerCase()
             if (sColor && reg.test(sColor)) {
@@ -88,7 +93,7 @@ export default {
                 for (let i = 1; i < 7; i += 2) {
                     sColorChange.push(parseInt('0x' + sColor.slice(i, i + 2)))
                 }
-                sColor = 'rgba(' + sColorChange.join(',') + ',0.5)'
+                sColor = 'rgba(' + sColorChange.join(',') + ',' + (__opacity != undefined ? __opacity : 0.3) + ')'
             }
 
             let _values = sColor
@@ -109,10 +114,12 @@ export default {
             var _style = ''
             if (__obj.columnIndex > (this.xlsxFields.length - 1) && __obj.row[this.dever] != '') {
                 let _weekend = __obj.row.dateAr[__obj.columnIndex - this.xlsxFields.length]
-                if (_weekend == 1) {
+                if (_weekend == 2) {
                     _style = 'background-color:' + __obj.row.color
                 } else if (_weekend == 3) {
                     _style = 'background-color:' + this.colorRgb(__obj.row.color)
+                } else if (_weekend == 4) {
+                    _style = 'background-color:' + this.colorRgb(__obj.row.color, 0.7)
                 } else {
                     _style = ''
                 }
@@ -223,6 +230,7 @@ export default {
                     for (let i = 0; i < _tableData.length; i++) {
                         let _obj = _this.developers[_tableData[i][_this.dever] || _this.dever] || {}
                         _obj.time = _obj.time || 0
+                        _obj.delayTime = _obj.delayTime || 0
                         _tableData[i].min = parseInt(_obj.time)
                         _tableData[i].devlog = _tableData[i].devlog || []
                         var _devlog = _tableData[i].开发记录.trim()
@@ -236,6 +244,7 @@ export default {
                         } else {
                             _tableData[i].延期天数 = ''
                         }
+                        _obj.delayTime += parseFloat(_tableData[i].延期天数 || 0)
                         _obj.time += parseFloat(_tableData[i].评估天数 || 0) + parseFloat(_tableData[i].延期天数 || 0)
                         _tableData[i].max = Math.ceil(_obj.time)
                         _this.developers[_tableData[i][_this.dever] || _this.dever] = _obj
@@ -264,10 +273,10 @@ export default {
                         _tableData[m].color = _this.developers[_tableData[m][_this.dever] || _this.dever].color
                         for (let n = 0; n < _this.dateAr.length; n++) {
                             if (_index >= _tableData[m].min && _index < _tableData[m].max && _this.dateAr[n].weekend != 1) {
-                                _tableData[m].dateAr.push(1)
+                                _tableData[m].dateAr.push(2)
                             } else {
                                 if (_this.dateAr[n].weekend == 1) {
-                                    _tableData[m].dateAr.push(2)
+                                    _tableData[m].dateAr.push(1)
                                 } else {
                                     _tableData[m].dateAr.push(0)
                                 }
@@ -277,7 +286,7 @@ export default {
                             }
                             for (let j = 0; j < _tableData[m].devlog.length; j++) {
                                 if (Date.parse(_tableData[m].devlog[j]) == Date.parse(_this.startTime) + 86400000 * n) {
-                                    _tableData[m].dateAr[_tableData[m].dateAr.length - 1] = 3
+                                    _tableData[m].dateAr[_tableData[m].dateAr.length - 1] = _tableData[m].dateAr[_tableData[m].dateAr.length - 1] == 2 ? 4 : 3
                                     break
                                 }
                             }
@@ -352,7 +361,19 @@ export default {
                         _sheetData[_cellName + (m + 2)] = _this.sheetStyle(_this.tableData[m][_this.xlsxFields[n]])
                     } else {
                         let _weekend = _this.tableData[m].dateAr[n - _this.xlsxFields.length]
-                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _this.tableData[m][_this.dever] != '' && _weekend == 1 ? _this.tableData[m].color : (_weekend == 2 ? '#CCCCCC' : _weekend == 3 ? _this.colorRgb(_this.tableData[m].color) : ''))
+                        var _color = ''
+                        if (_this.tableData[m][_this.dever] != '' && _weekend == 2) {
+                            _color = _this.tableData[m].color
+                        } else if (_weekend == 1) {
+                            _color = '#CCCCCC'
+                        } else if (_weekend == 3) {
+                            _color = _this.colorRgb(_this.tableData[m].color)
+                        } else if (_weekend == 4) {
+                            _color = _this.colorRgb(_this.tableData[m].color, 0.7)
+                        } else {
+                            _color = ''
+                        }
+                        _sheetData[_cellName + (m + 2)] = _this.sheetStyle('', _color)
                     }
                 }
             }
