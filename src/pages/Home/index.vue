@@ -6,7 +6,7 @@
         </div>
         <p>项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工作日：{{developersDays.time/10}}天/人
             <span v-if="developersDays.delayTime>0">(包括延期{{developersDays.delayTime/10}}天)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
-        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}</p>
+        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}<span v-if="finishDateAr.length">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前进度结束日期：{{finishDateAr[finishDateAr.length - 1].date}}</span></p>
         <p style="margin-bottom: 20px;">开发人员：{{developersList.toString()}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最短：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最长：{{devDays.max}}天</p>
         <el-table :data="tableData" border style="width: 100%" height="480" :cell-style="getCellStyle">
             <el-table-column show-overflow-tooltip fixed header-align="center" :prop="item" :label="item" v-for="(item,idx) in xlsxFields" :key="item + idx">
@@ -36,7 +36,8 @@ export default {
             startTime: '',
             remarks: [],
             dever: '开发人员',
-            devlogDays: []
+            devlogDays: [],
+            finishDateAr: []
         }
     },
     computed: {
@@ -126,12 +127,12 @@ export default {
             }
             return _style
         },
-        getTotalTime (__time, __dayTime) {
+        getTotalTime (__time, __dayTime, __delayTime) {
             var _time = 0
             var _totalTime = 0
             var _ar = []
             while (_time < Math.ceil(__time)) {
-                let _date = new Date(Date.parse(this.startTime) + 86400000 * _totalTime)
+                let _date = new Date(Date.parse(__delayTime != undefined ? __delayTime : this.startTime) + 86400000 * _totalTime)
                 if (_date.getDay() != 0 && _date.getDay() != 6) {
                     _time++
                 }
@@ -143,7 +144,7 @@ export default {
                 _ar.push(_obj)
             }
             while (_totalTime <= __dayTime) {
-                let _date = new Date(Date.parse(this.startTime) + 86400000 * _totalTime)
+                let _date = new Date(Date.parse(__delayTime != undefined ? __delayTime : this.startTime) + 86400000 * _totalTime)
                 let _obj = {
                     date: _date.format('MM月dd日'),
                     weekend: _date.getDay() != 0 && _date.getDay() != 6 ? 0 : 1
@@ -292,6 +293,44 @@ export default {
                             }
                         }
                     }
+                    // 计算剩余天数
+                    for (let m = 0; m < _tableData.length; m++) {
+                        let _obj = _this.developers[_tableData[m][_this.dever] || _this.dever]
+                        _obj.剩余天数 = _obj.剩余天数 || 0
+                        if (_tableData[m].进度 != 100 && (_tableData[m].延期天数 || 0) > 0) {
+                            _obj.剩余天数 += 1
+                        } else {
+                            let _usedTime = 0
+                            for (let i = 0; i < _tableData[m].devlog.length; i++) {
+                                var _repeat = 0
+                                for (let j = 0; j < _this.devlogDays.length; j++) {
+                                    if (Date.parse(_tableData[m].devlog[i]) == Date.parse(_this.devlogDays[j])) {
+                                        _repeat++
+                                    }
+                                }
+                                if (_repeat > 0) {
+                                    _usedTime += Math.floor(1000 / _repeat)
+                                }
+                            }
+                            _obj.剩余天数 += _tableData[m].进度 != 100 ? ((_tableData[m].评估天数 || 0) - (_usedTime / 1000)) : 0
+                        }
+                    }
+                    // 推算出完成日期
+                    let _finishTime = 0
+                    for (let _dev in _this.developers) {
+                        _finishTime = Math.max(_this.developers[_dev].剩余天数, _finishTime)
+                    }
+                    var _curTime = new Date().format('yyyy/MM/dd')
+                    var _delayWork = 1
+                    for (let j = 0; j < _this.devlogDays.length; j++) {
+                        if (Date.parse(_curTime) == Date.parse(_this.devlogDays[j])) {
+                            _delayWork = 0
+                            break
+                        }
+                    }
+                    let _date = new Date(Date.parse(_curTime) + 86400000 * _delayWork).format('yyyy/MM/dd')
+
+                    _this.finishDateAr = _this.getTotalTime(Math.ceil(_finishTime), 0, _date)
                     _this.tableData = _tableData
                 }
             }
