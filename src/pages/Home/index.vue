@@ -6,7 +6,9 @@
         </div>
         <p>项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工作日：{{developersDays.time/10}}天/人
             <span v-if="developersDays.delayTime>0">(包括延期{{developersDays.delayTime/10}}天)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
-        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}<span v-if="finishDateAr.length">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前进度结束日期：{{finishDateAr[finishDateAr.length - 1].date}}</span></p>
+        <p>开始日期：{{dateAr.length ? dateAr[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{dateAr.length ? dateAr[dateAr.length - 1].date : ''}}
+            <span v-if="finishDateAr.length">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前日期结算进度结束日期：{{finishDateAr[finishDateAr.length - 1].date}}</span>
+        </p>
         <p style="margin-bottom: 20px;">开发人员：{{developersList.toString()}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最短：{{devDays.min}}天&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;单人最长：{{devDays.max}}天</p>
         <el-table :data="tableData" border style="width: 100%" height="480" :cell-style="getCellStyle">
             <el-table-column show-overflow-tooltip fixed header-align="center" :prop="item" :label="item" v-for="(item,idx) in xlsxFields" :key="item + idx">
@@ -179,7 +181,7 @@ export default {
                 var wsname = wb.SheetNames[0]
                 var ws = wb.Sheets[wsname]
                 // eslint-disable-next-line
-                // console.log(ws)
+                console.log(ws)
                 var _sheet = XLSX.utils.sheet_to_json(ws, { header: 1 })
                 // 读取排期内容
                 var _xlsxData = []
@@ -329,8 +331,9 @@ export default {
                         }
                     }
                     let _date = new Date(Date.parse(_curTime) + 86400000 * _delayWork).format('yyyy/MM/dd')
-
                     _this.finishDateAr = _this.getTotalTime(Math.ceil(_finishTime), 0, _date)
+                    // eslint-disable-next-line
+                    console.log(_tableData)
                     _this.tableData = _tableData
                 }
             }
