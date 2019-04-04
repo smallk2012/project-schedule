@@ -2,7 +2,9 @@
     <div class="page">
         <div style="margin-bottom: 20px;">
             <input type="file" multiple="false" id="sheetjs-input" accept=".xlsx,.xls" @change="onchange($event)" />
-            <button type="button" v-if="tableData.length" @click="downloadExl">导出XLSX</button>
+            <span style="color:#ff0000;">导入的excel文件命名格式必须是：项目名称_时间 比如: demo_2019-1-1 或 demo_2019-01-01</span>
+            <button type="button" v-if="tableData.length" @click="downloadExl">导出EXCEL模板</button>
+            <button type="button" v-else @click="downloadExl">导出EXCEL</button>
         </div>
         <p>项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工作日：{{developersDays.time/10}}天/人
             <span v-if="developersDays.delayTime>0">(包括延期{{developersDays.delayTime/10}}天)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发(包括周末)：{{dateAr.length}}天/{{developersList.length}}人</p>
@@ -16,6 +18,7 @@
             <el-table-column show-overflow-tooltip min-width="120" align="center" :class-name="item.weekend ? 'gray' : ''" :label="item.date" v-for="(item,idx) in dateAr" :key="idx" width="100">
             </el-table-column>
         </el-table>
+        <div style="background-color:#000000;height: 20px;"></div>
         <p v-for="(item,index) in remarks" :key="index">{{item}}</p>
     </div>
 </template>
@@ -30,13 +33,72 @@ export default {
             developers: {},
             colors: ['#7A24A6', '#001E64', '#0070C6', '#00B2F6', '#00B441', '#7ED432', '#FEFF00', '#FFBE00', '#FF0000', '#D20000'],
             dateAr: [],
-            tableData: [],
+            tableData: [
+                {
+                    color: '#7A24A6',
+                    dateAr: [],
+                    devlog: [],
+                    max: 3,
+                    min: 0,
+                    自定义一级页面: '首页',
+                    自定义二级页面: '',
+                    自定义三级页面: 'banner',
+                    延期天数: '',
+                    开发人员: '路人甲',
+                    开发记录: '',
+                    评估天数: '2.5',
+                    进度: ''
+                },
+                {
+                    color: '#001E64',
+                    dateAr: [],
+                    devlog: [],
+                    max: 2,
+                    min: 0,
+                    自定义一级页面: '新闻',
+                    自定义二级页面: '新闻列表',
+                    自定义三级页面: '',
+                    延期天数: '',
+                    开发人员: '路人乙',
+                    开发记录: '',
+                    评估天数: '1.5',
+                    进度: ''
+                },
+                {
+                    color: '#001E64',
+                    dateAr: [],
+                    devlog: [],
+                    max: 2,
+                    min: 0,
+                    自定义一级页面: '',
+                    自定义二级页面: '',
+                    自定义三级页面: '新闻详情',
+                    延期天数: '',
+                    开发人员: '路人甲',
+                    开发记录: '',
+                    评估天数: '1.5',
+                    进度: ''
+                }
+            ],
             xlsxData: [],
-            xlsxFields: [],
+            xlsxFields: [
+                '自定义一级页面',
+                '自定义二级页面',
+                '自定义三级页面',
+                '开发人员',
+                '评估天数',
+                '延期天数',
+                '开发记录',
+                '进度'
+            ],
             fileName: '',
             suffix: 'xlsx',
             startTime: '',
-            remarks: [],
+            remarks: [
+                '黑色条是一个分界线，每天站会纪要问题可以写在黑色条下面，方便项目跟踪',
+                '自定义的东西可以随便添加N个',
+                '但是自定义后面的[开发人员,评估天数,延期天数,开发记录,进度]不能变，固定内容'
+            ],
             dever: '开发人员',
             devlogDays: [],
             finishDateAr: []
@@ -333,7 +395,7 @@ export default {
                     let _date = new Date(Date.parse(_curTime) + 86400000 * _delayWork).format('yyyy/MM/dd')
                     _this.finishDateAr = _this.getTotalTime(Math.ceil(_finishTime), 0, _date)
                     // eslint-disable-next-line
-                    console.log(_tableData)
+                    console.log(_xlsxData)
                     _this.tableData = _tableData
                 }
             }
@@ -464,6 +526,10 @@ export default {
         }
     },
     mounted () {
+        var _this = this
+        _this.fileName = '排期示例_' + (new Date().format())
+        // eslint-disable-next-line
+        _this.startTime = _this.fileName.split('_')[1].replace(/\-/g, '/')
     }
 }
 
@@ -471,6 +537,7 @@ export default {
 
 <style scoped lang="scss">
 .page /deep/ {
+    font-size: 14px;
     .gray {
         background-color: #ccc;
     }
