@@ -16,9 +16,14 @@ export default {
             component: () => import('@/pages/Home')
         },
         {
+            path: '/excel',
+            name: 'excel',
+            component: () => import('@/pages/Excel')
+        },
+        {
             path: '*',
             redirect: {
-                path: '/home'
+                path: '/excel'
             }
         }
     ]
