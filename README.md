@@ -1,4 +1,4 @@
-# https://smallk2012.github.io/project-schedule/dist/#/home
+# https://smallk2012.github.io/project-schedule/dist
 ![Image text](./desc.png)
 ```
 //[*]为本脚手架每次新项目中必动地方，反之建议不需要动。
