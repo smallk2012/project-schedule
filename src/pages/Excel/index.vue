@@ -7,10 +7,11 @@
             <button type="button" v-else @click="downloadExl">导出EXCEL</button>
         </div>
         <div style="margin-left: 10px;margin-bottom: 20px;display: inline-block;border: 1px solid rgb(204, 204, 204);padding: 20px;border-radius: 4px;line-height: 1.4;color: #333;">
-            <p ref="info1">项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工作日：{{info.total}}天/人
-                <span v-if="info.delay">(包括延期天数{{info.delay}}天)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发周期：{{timelines.length}}天</p>
-            <p ref="info2">开始日期：{{timelines.length ? timelines[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{timelines.length ? timelines[timelines.length - 1].date : ''}}
-                <span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前日期结算进度结束日期：{{curTimelines.length ? curTimelines[curTimelines.length - 1].date : ''}}</span>
+            <p ref="info1">项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前工期：{{info.total}}天/人
+                <span v-if="info.delay">(原评估{{((info.total - info.delay) * 100)/100}}天/人)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前开发周期：{{timelines.length}}天</p>
+            <p ref="info2">开始日期：{{timelines.length ? timelines[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{endDate.date}}
+                <span v-if="planTimeLines.length && endDate.time != planTimeLines[planTimeLines.length - 1].time">（原计划{{planTimeLines[planTimeLines.length - 1].date}}结束）</span>
+                <span v-if="curTimelines.length && endDate.time != curTimelines[curTimelines.length - 1].time">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;次日日期结算进度结束日期：{{curTimelines[curTimelines.length - 1].date}}</span>
             </p>
             <p ref="info3">人员信息：
                 <span v-html="info.devs"></span>
@@ -46,6 +47,7 @@ export default {
             fields: [],
             timelines: [],
             curTimelines: [],
+            planTimeLines: [],
             table: [],
             devInfo: {}
         }
@@ -61,6 +63,27 @@ export default {
                 _devs.push(dev + '<span style="color:#ff0000;">' + this.devInfo[dev].开发总天数 + '天</span>')
             }
             return { total: _total, delay: _delay, devs: _devs.toString() }
+        },
+        endDate () {
+            let _endDate = this.timelines.length ? this.timelines[this.timelines.length - 1] : {}
+            // 最后一天排期日
+            let _lastDevDay = 0
+            for (let dev in this.devInfo) {
+                for (let m = 0; m < this.devInfo[dev].devlog.length; m++) {
+                    _lastDevDay = Math.max(_lastDevDay, this.devInfo[dev].devlog[m])
+                }
+            }
+            // 获取开发进度情况
+            let _finishNum = 0
+            for (let m = 0; m < this.table.length; m++) {
+                if (this.table[m].进度 == 100) {
+                    _finishNum++
+                }
+            }
+            return {
+                date: _finishNum == this.table.length ? new Date(_lastDevDay).format('MM月dd日') : _endDate.date,
+                time: _finishNum == this.table.length ? _lastDevDay : _endDate.time
+            }
         }
     },
     methods: {
@@ -70,12 +93,13 @@ export default {
             let _timeIndex = 0
             let _timeCount = 0
             while (_timeCount < Math.ceil(__maxTime) || _timeIndex <= __devMaxTime) {
-                let _date = new Date(Date.parse(__startTime) + 86400000 * _timeIndex)
+                let _time = Date.parse(__startTime) + 86400000 * _timeIndex
+                let _date = new Date(_time)
                 let _isNotWeeked = _date.getDay() != 0 && _date.getDay() != 6
                 let _obj = {
                     date: _date.format('MM月dd日'),
                     mark: _isNotWeeked ? 0 : 1,
-                    time: _date.getTime()
+                    time: _time
                 }
                 _timelines.push(_obj)
                 _timeIndex++
@@ -174,7 +198,7 @@ export default {
                 let _table = []
                 for (let m = 1; m < _conts.length; m++) {
                     var _obj = {}
-                    for (let n = 0; n < _conts[m].length; n++) {
+                    for (let n = 0; n < Math.max(_conts[m].length, _this.fields.length); n++) {
                         if (n < _this.fields.length) {
                             _obj[_this.fields[n]] = _conts[m][n] || ''
                         }
@@ -222,7 +246,7 @@ export default {
                         }
                     }
                     let _pgTime = parseFloat(_table[m].评估天数 || 0) * 100
-                    _table[m].延期天数 = _delayTime > _pgTime ? (_delayTime - _pgTime) / 100 : ''
+                    _table[m].延期天数 = _delayTime > _pgTime ? (_delayTime - _pgTime) / 100 : (_delayTime == _pgTime && _table[m].进度 != 100 ? 0.5 : '')
                 }
                 // 开发总天数，区间，主题色
                 for (let m = 0; m < _table.length; m++) {
@@ -262,15 +286,15 @@ export default {
                 // 获取开发人员使用最长时间
                 let _maxTime = 0
                 // 最后一天排期日
-                let _lastDay = 0
+                let _lastDevDay = 0
                 for (let dev in _dev) {
                     _maxTime = Math.max(_maxTime, _dev[dev].开发总天数 + _dev[dev].happyTime.length)
                     for (let m = 0; m < _dev[dev].devlog.length; m++) {
-                        _lastDay = Math.max(_lastDay, _dev[dev].devlog[m])
+                        _lastDevDay = Math.max(_lastDevDay, _dev[dev].devlog[m])
                     }
                 }
                 // 获取当前最长开发时间天数
-                let _devMaxTime = (_lastDay - Date.parse(_this.startTime)) / 86400000
+                let _devMaxTime = (_lastDevDay - Date.parse(_this.startTime)) / 86400000
                 // 获取开发时间线
                 let _timelines = _this.getTimeLines(_maxTime, _devMaxTime, _this.startTime)
                 // 每条数据的时间线
@@ -341,20 +365,27 @@ export default {
                 for (let dev in _dev) {
                     let _happyNum = 0
                     for (let m = 0; m < _dev[dev].happyTime.length; m++) {
-                        if (_dev[dev].happyTime[m] >= _curTime) {
+                        if (_dev[dev].happyTime[m] > _curTime) {
                             _happyNum++
                         }
                     }
-                    let _todayWorkNum = 1
-                    for (let m = 0; m < _dev[dev].devlog.length; m++) {
-                        if (_dev[dev].devlog[m] == _curTime) {
-                            _todayWorkNum = 0
-                            break
+                    // 该开发人员进度已经完成，那么评估天数内的休假不统计了
+                    let _notFinishNum = 0
+                    for (let m = 0; m < _table.length; m++) {
+                        if (_table[m].开发人员 == dev && _table[m].进度 != 100) {
+                            _notFinishNum++
                         }
                     }
-                    _finishTime = Math.max(_dev[dev].剩余天数 + _happyNum + _todayWorkNum, _finishTime)
+                    _finishTime = Math.max(_dev[dev].剩余天数 + (_notFinishNum > 0 ? _happyNum : 0), _finishTime)
                 }
-                let _curTimelines = _this.getTimeLines(_finishTime, 0, _curDate)
+                let _curTimelines = _finishTime > 0 ? _this.getTimeLines(_finishTime, 0, new Date(_curTime + 86400000).format('yyyy/MM/dd')) : []
+                // 原计划结束日期
+                _maxTime = 0
+                for (let dev in _dev) {
+                    _maxTime = Math.max(_maxTime, _dev[dev].开发总天数 - _dev[dev].延期总天数 + _dev[dev].happyTime.length)
+                }
+                let _planTimeLines = _this.getTimeLines(_maxTime, 0, _this.startTime)
+                _this.planTimeLines = _planTimeLines
                 _this.devInfo = _dev
                 _this.curTimelines = _curTimelines
                 _this.timelines = _timelines
@@ -362,7 +393,7 @@ export default {
                 // eslint-disable-next-line
                 console.log(_table)
                 // eslint-disable-next-line
-                console.log(_curTimelines)
+                console.log(_dev)
             }
         },
         onchange (evt) {
@@ -549,7 +580,18 @@ export default {
         _this.fileName = '排期示例_' + (new Date().format())
         // eslint-disable-next-line
         _this.startTime = _this.fileName.split('_')[1].replace(/\-/g, '/')
-        let _sheet = [['自定义一级页面', '自定义二级页面', '自定义三级页面', '开发人员', '评估天数', '休假记录', '延期天数', '开发记录', '进度'], ['首页', '', 'banner', '路人甲', '2.5', '', '', '', ''], ['新闻', '新闻列表', '', '路人乙', '1.5', '', '', '', ''], ['', '', '新闻详情', '路人甲', '1.5', '', '', '', ''], ['', '', '', '', '', '', '', '', ''], ['黑色条是一个分界线，每天站会纪要问题可以写在黑色条下面，方便项目跟踪', '', '', '', '', '', '', '', ''], ['自定义的东西可以随便添加N个', '', '', '', '', '', '', '', ''], ['休假记录和开发记录的日期必须#符号开头，如#2019/1/1或#2019/01/01', '', '', '', '', '', '', '', ''], ['但是自定义后面的[开发人员,评估天数,休假记录,延期天数,开发记录,进度]为固定内容', '', '', '', '', '', '', '', ''], ['休假记录：把你休息的那天日期记录起来，就不会排期了', '', '', '', '', '', '', '', ''], ['延期天数：导入到网站保存的时候，会自动结算', '', '', '', '', '', '', '', ''], ['干活前：你只需要弄自定义页面，开发人员，评估天数', '', '', '', '', '', '', '', ''], ['干活后：你只需要填开发记录，进度', '', '', '', '', '', '', '', '']]
+        let _sheet = [
+            ['自定义一级页面', '自定义二级页面', '自定义三级页面', '开发人员', '评估天数', '休假记录', '延期天数', '开发记录', '进度'],
+            ['首页', '', 'banner', '路人甲', '2.5', '', '', '', ''], ['新闻', '新闻列表', '', '路人乙', '1.5', '', '', '', ''],
+            ['', '', '新闻详情', '路人甲', '1.5', '', '', '', ''], ['', '', '', '', '', '', '', '', ''],
+            ['黑色条是一个分界线，每天站会纪要问题可以写在黑色条下面，方便项目跟踪', '', '', '', '', '', '', '', ''],
+            ['自定义的东西可以随便添加N个', '', '', '', '', '', '', '', ''],
+            ['休假记录和开发记录的日期必须#符号开头，如#2019/1/1或#2019/01/01', '', '', '', '', '', '', '', ''],
+            ['但是自定义后面的[开发人员,评估天数,休假记录,延期天数,开发记录,进度]为固定内容', '', '', '', '', '', '', '', ''],
+            ['休假记录：把你休息的那天日期记录起来，就不会排期了', '', '', '', '', '', '', '', ''],
+            ['延期天数：导入到网站保存的时候，会自动结算(开发记录大于评估天数=延期1天，相等并进度不等于100=延期0.5天)', '', '', '', '', '', '', '', ''],
+            ['干活前：你只需要弄自定义页面，开发人员，评估天数', '', '', '', '', '', '', '', ''],
+            ['干活后：你只需要填开发记录，进度', '', '', '', '', '', '', '', '']]
         _this.sheetFmt(_sheet)
     }
 }
