@@ -7,8 +7,8 @@
             <button type="button" v-else @click="downloadExl">导出EXCEL</button>
         </div>
         <div style="margin-left: 10px;margin-bottom: 20px;display: inline-block;border: 1px solid rgb(204, 204, 204);padding: 20px;border-radius: 4px;line-height: 1.4;color: #333;">
-            <p ref="info1">项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前工期：{{info.total}}天/人
-                <span v-if="info.delay">(原评估{{((info.total - info.delay) * 100)/100}}天/人)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;当前开发周期：{{timelines.length}}天</p>
+            <p ref="info1">项目：{{fileName.split('_')[0]}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;工期：{{info.total}}天/人
+                <span v-if="info.delay">(原评估{{((info.total - info.delay) * 100)/100}}天/人)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;开发周期：{{timelines.length}}天</p>
             <p ref="info2">开始日期：{{timelines.length ? timelines[0].date : ''}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;结束日期：{{endDate.date}}
                 <span v-if="planTimeLines.length && endDate.time != planTimeLines[planTimeLines.length - 1].time">（原计划{{planTimeLines[planTimeLines.length - 1].date}}结束）</span>
                 <span v-if="curTimelines.length && endDate.time != curTimelines[curTimelines.length - 1].time">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;次日日期结算进度结束日期：{{curTimelines[curTimelines.length - 1].date}}</span>
