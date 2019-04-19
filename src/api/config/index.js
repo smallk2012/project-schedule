@@ -6,7 +6,7 @@ const debug = true
  * mock = true 开启模拟数据
  * 为了方便入门使用mock数据，默认开启
  */
-const mock = true
+const mock = false
 /**
  * baseURL 接口统一默认入口
  * 登录接口:http://www.yingzaiqidian.cn/wxcode/login

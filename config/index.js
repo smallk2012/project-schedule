@@ -16,7 +16,7 @@ module.exports = {
             // 那么你看到的请求链接是http://localhost:8080/api/wxcode/login
             // 实际请求的是http://www.yingzaiqidian.cn/wxcode/login
             '/api': {
-                target: 'http://yingzaiqidian.cn',
+                target: 'https://analyze.fosun.com',
                 changeOrigin: true,
                 pathRewrite: {
                     '^/api': ''
