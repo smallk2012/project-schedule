@@ -1,7 +1,7 @@
 /**
  * debug = true 开启数据打印模式
  */
-const debug = true
+const debug = false
 /**
  * mock = true 开启模拟数据
  * 为了方便入门使用mock数据，默认开启
