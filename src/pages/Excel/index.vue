@@ -246,7 +246,7 @@ export default {
                         }
                     }
                     let _pgTime = parseFloat(_table[m].评估天数 || 0) * 100
-                    _table[m].延期天数 = _delayTime > _pgTime ? (_delayTime - _pgTime) / 100 : (_delayTime == _pgTime && _table[m].进度 != 100 ? 0.5 : '')
+                    _table[m].延期天数 = _delayTime > _pgTime ? (_delayTime - _pgTime) / 100 : (_delayTime == _pgTime && _table[m].进度 != 100 ? ((_table[m].评估天数 || 0) == 0 ? '' : 0.5) : '')
                 }
                 // 开发总天数，区间，主题色
                 for (let m = 0; m < _table.length; m++) {
