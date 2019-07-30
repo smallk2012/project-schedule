@@ -593,16 +593,6 @@ export default {
             ['干活前：你只需要弄自定义页面，开发人员，评估天数', '', '', '', '', '', '', '', ''],
             ['干活后：你只需要填开发记录，进度', '', '', '', '', '', '', '', '']]
         _this.sheetFmt(_sheet)
-        _this.$api.postJson(
-            '/a.gif',
-            res => {
-                // eslint-disable-next-line
-                console.log(res)
-            },
-            {
-                s: '%7B%22seq%22%3A1%2C%22project%22%3A%22baodao_h5%22%2C%22version%22%3A%221.0.0%22%2C%22distinct_id%22%3A%22%22%2C%22time%22%3A1555308435927%2C%22event%22%3A%22webclick%22%2C%22properties%22%3A%7B%22is_login_id%22%3Atrue%2C%22ip%22%3A%22180.167.229.162%22%2C%22province%22%3A%22%E4%B8%8A%E6%B5%B7%E5%B8%82%22%2C%22city%22%3A%22%E4%B8%8A%E6%B5%B7%E5%B8%82%22%2C%22user_agent%22%3A%22Mozilla%2F5.0%20(Windows%20NT%2010.0%3B%20WOW64)%20AppleWebKit%2F537.36%20(KHTML%2C%20like%20Gecko)%20Chrome%2F73.0.3683.86%20Safari%2F537.36%22%2C%22screen_width%22%3A1920%2C%22screen_height%22%3A1080%2C%22title%22%3A%22%E5%9F%8B%E7%82%B9%E6%B5%8B%E8%AF%95%E9%A1%B5%E9%9D%A2%22%2C%22url%22%3A%22file%3A%2F%2F%2FC%3A%2FUsers%2Fthink%2FDesktop%2Fb%2Findex.html%22%2C%22url_path%22%3A%22%2FC%3A%2FUsers%2Fthink%2FDesktop%2Fb%2Findex.html%22%2C%22referrer_host%22%3A%22%22%2C%22referrer%22%3A%22%22%2C%22x%22%3A46%2C%22y%22%3A411%7D%7D'
-            }
-        )
     }
 }
 
